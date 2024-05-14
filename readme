@@ -1,2 +1,28 @@
 这里仅上传 核心文件。
 原始代码代码仓库：https://github.com/zju3dv/EfficientLoFTR
+
+修改一点代码：
+1. src\loftr\utils\position_encoding.py
+
+def rotate_half(self, x):
+    # xshape 【1， 19， 32,256】
+    #  x.unflatten(-1, (-1, 2)) [1 19 32 128 2]
+    x_dimlist =list(x.shape[:-1])
+    x_dimlist.extend([-1, 2])
+    if torch.onnx.is_in_onnx_export:
+        x = x.reshape(x_dimlist)
+    else:
+        x = x.unflatten(-1, (-1, 2))
+    x1, x2 = x.unbind(dim=-1)
+    return torch.stack((-x2, x1), dim=-1).flatten(start_dim=-2)
+
+
+
+2. 报错： 10 : INVALID_GRAPH : Load model from loftr_outdoor_ds.onnx failed:This is an invalid model.
+ Type Error: Type 'tensor(bool)' of input parameter (/model/coarse_matching/And_1_output_0) 
+ of operator (ReduceMax) in node (/model/coarse_matching/ReduceMax_2) is invalid.
+ 在onnx中找到这个节点。然后再代码中定位到这行
+ 参考这个 https://blog.csdn.net/weixin_42694889/article/details/120129015
+ 修改代码
+src\loftr\utils\coarse_matching.py
+mask_v, all_j_ids = mask.type(torch.int32).max(dim=2)
